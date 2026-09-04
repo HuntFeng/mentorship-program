@@ -19,7 +19,12 @@
             their interests.
           </p>
 
-          <form class="intake-form" @submit.prevent="bookSession">
+          <UForm
+            :state="form"
+            :validate="validate"
+            class="intake-form"
+            @submit="bookSession"
+          >
             <div class="form-heading">
               <h2>
                 Meet one of our mentors online in a project exploration session
@@ -27,17 +32,17 @@
               <p>Complete these details to request your session.</p>
             </div>
             <div class="form-grid">
-            <UFormField label="Email" name="email" required :error="formErrors.email"
+            <UFormField label="Email" name="email" required
               ><UInput
                 v-model="form.email"
                 type="email"
                 placeholder="you@example.com"
                 size="lg"
             /></UFormField>
-            <UFormField label="Name" name="name" required :error="formErrors.name"
+            <UFormField label="Name" name="name" required
               ><UInput v-model="form.name" placeholder="Your name" size="lg"
             /></UFormField>
-            <UFormField label="Grade" name="grade" required :error="formErrors.grade"
+            <UFormField label="Grade" name="grade" required
               ><UInput
                 v-model="form.grade"
                 placeholder="e.g. Grade 11"
@@ -53,7 +58,6 @@
             <UFormField
               label="Why do you want to do research (optional)"
               name="intro"
-              :error="formErrors.intro"
               ><UTextarea class="w-full" v-model="form.intro" placeholder="Tell us about yourself!" size="lg"
             /></UFormField>
             </div>
@@ -68,7 +72,7 @@
             <p v-if="bookingMessage" class="booking-message" role="status">
               {{ bookingMessage }}
             </p>
-          </form>
+          </UForm>
         </section>
 
         <section class="product" aria-labelledby="session-title">
@@ -96,6 +100,8 @@
 </template>
 
 <script setup lang="ts">
+import type { FormError, FormSubmitEvent } from "@nuxt/ui";
+
 const supabase = useSupabaseClient();
 const form = reactive({
   email: "",
@@ -104,12 +110,8 @@ const form = reactive({
   researchArea: "",
   intro: "",
 });
-const formErrors = reactive({
-  email: "",
-  name: "",
-  grade: "",
-  intro: "",
-});
+type FormState = typeof form;
+
 const researchAreas = ["AI", "Physics"];
 const isBooking = ref(false);
 const bookingMessage = ref("");
@@ -122,9 +124,7 @@ const isFormComplete = computed(
     form.researchArea !== "",
 );
 
-const isFormValid = computed(
-  () => !Object.values(getValidationErrors()).some(Boolean),
-);
+const isFormValid = computed(() => validate(form).length === 0);
 
 const timelineItems = [
   {
@@ -159,43 +159,42 @@ const timelineItems = [
   },
 ];
 
-function getValidationErrors() {
-  const email = form.email.trim();
-  const name = form.name.trim();
-  const grade = form.grade.trim();
-  const intro = form.intro.trim();
+function validate(state: Partial<FormState>): FormError[] {
+  const errors: FormError[] = [];
+  const email = state.email?.trim();
+  const name = state.name?.trim();
+  const grade = state.grade?.trim();
+  const intro = state.intro?.trim();
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  return {
-    email: email && !emailPattern.test(email) ? "Enter a valid email address." : "",
-    name:
-      name && name.length >= 100 ? "Name must be fewer than 100 characters." : "",
-    grade:
-      grade && grade.length >= 50 ? "Grade must be fewer than 50 characters." : "",
-    intro:
-      intro && (intro.match(/\S+/g)?.length ?? 0) >= 1000
-        ? "Introduction must be fewer than 1,000 words."
-        : "",
-  };
+  if (email && !emailPattern.test(email)) {
+    errors.push({ name: "email", message: "Enter a valid email address." });
+  }
+  if (name && name.length >= 100) {
+    errors.push({ name: "name", message: "Name must be fewer than 100 characters." });
+  }
+  if (grade && grade.length >= 50) {
+    errors.push({ name: "grade", message: "Grade must be fewer than 50 characters." });
+  }
+  if (intro && (intro.match(/\S+/g)?.length ?? 0) >= 1000) {
+    errors.push({ name: "intro", message: "Introduction must be fewer than 1,000 words." });
+  }
+
+  return errors;
 }
 
-function validateForm() {
-  Object.assign(formErrors, getValidationErrors());
-  return !Object.values(formErrors).some(Boolean);
-}
-
-async function bookSession() {
+async function bookSession(event: FormSubmitEvent<FormState>) {
   bookingMessage.value = "";
-  if (!isFormComplete.value || !validateForm()) return;
+  if (!isFormComplete.value || !isFormValid.value) return;
 
   isBooking.value = true;
   try {
     const { error } = await supabase.from("signups").insert({
-      email: form.email.trim(),
-      name: form.name.trim(),
-      grade: form.grade.trim(),
-      research_area: form.researchArea,
-      intro: form.intro.trim(),
+      email: event.data.email.trim(),
+      name: event.data.name.trim(),
+      grade: event.data.grade.trim(),
+      research_area: event.data.researchArea,
+      intro: event.data.intro.trim(),
     });
 
     if (error) throw error;
