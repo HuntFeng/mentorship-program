@@ -200,7 +200,7 @@ async function bookSession() {
 
     if (error) throw error;
 
-    bookingMessage.value = "Thanks — your signup has been received.";
+    bookingMessage.value = "Thanks you! Your sign up has been received. We do our best to match you a mentor. This will take a few business days.";
     Object.assign(form, {
       email: "",
       name: "",
