@@ -27,17 +27,17 @@
               <p>Complete these details to request your session.</p>
             </div>
             <div class="form-grid">
-            <UFormField label="Email" name="email" required
+            <UFormField label="Email" name="email" required :error="formErrors.email"
               ><UInput
                 v-model="form.email"
                 type="email"
                 placeholder="you@example.com"
                 size="lg"
             /></UFormField>
-            <UFormField label="Name" name="name" required
+            <UFormField label="Name" name="name" required :error="formErrors.name"
               ><UInput v-model="form.name" placeholder="Your name" size="lg"
             /></UFormField>
-            <UFormField label="Grade" name="grade" required
+            <UFormField label="Grade" name="grade" required :error="formErrors.grade"
               ><UInput
                 v-model="form.grade"
                 placeholder="e.g. Grade 11"
@@ -52,7 +52,8 @@
             /></UFormField>
             <UFormField
               label="Why do you want to do research (optional)"
-              name="form.introArea"
+              name="intro"
+              :error="formErrors.intro"
               ><UTextarea class="w-full" v-model="form.intro" placeholder="Tell us about yourself!" size="lg"
             /></UFormField>
             </div>
@@ -60,7 +61,7 @@
               type="submit"
               size="xl"
               class="book-session-button disabled:bg-gray-500 mt-3"
-              :disabled="!isFormComplete"
+              :disabled="!isFormComplete || !isFormValid"
               :loading="isBooking"
               >Sign Up</UButton
             >
@@ -95,7 +96,20 @@
 </template>
 
 <script setup lang="ts">
-const form = reactive({ email: "", name: "", grade: "", researchArea: "" });
+const supabase = useSupabaseClient();
+const form = reactive({
+  email: "",
+  name: "",
+  grade: "",
+  researchArea: "",
+  intro: "",
+});
+const formErrors = reactive({
+  email: "",
+  name: "",
+  grade: "",
+  intro: "",
+});
 const researchAreas = ["AI", "Physics"];
 const isBooking = ref(false);
 const bookingMessage = ref("");
@@ -106,6 +120,10 @@ const isFormComplete = computed(
     form.name.trim() !== "" &&
     form.grade.trim() !== "" &&
     form.researchArea !== "",
+);
+
+const isFormValid = computed(
+  () => !Object.values(getValidationErrors()).some(Boolean),
 );
 
 const timelineItems = [
@@ -141,21 +159,62 @@ const timelineItems = [
   },
 ];
 
-function bookSession() {
-  if (!isFormComplete.value) return;
+function getValidationErrors() {
+  const email = form.email.trim();
+  const name = form.name.trim();
+  const grade = form.grade.trim();
+  const intro = form.intro.trim();
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  return {
+    email: email && !emailPattern.test(email) ? "Enter a valid email address." : "",
+    name:
+      name && name.length >= 100 ? "Name must be fewer than 100 characters." : "",
+    grade:
+      grade && grade.length >= 50 ? "Grade must be fewer than 50 characters." : "",
+    intro:
+      intro && (intro.match(/\S+/g)?.length ?? 0) >= 1000
+        ? "Introduction must be fewer than 1,000 words."
+        : "",
+  };
+}
+
+function validateForm() {
+  Object.assign(formErrors, getValidationErrors());
+  return !Object.values(formErrors).some(Boolean);
+}
+
+async function bookSession() {
+  bookingMessage.value = "";
+  if (!isFormComplete.value || !validateForm()) return;
+
   isBooking.value = true;
-  const body = [
-    "Research Exploration Session request",
-    "",
-    `Name: ${form.name.trim()}`,
-    `Email: ${form.email.trim()}`,
-    `Grade: ${form.grade.trim()}`,
-    `Research area: ${form.researchArea}`,
-  ].join("\n");
-  window.location.href = `mailto:hunt.feng@usask.ca?subject=${encodeURIComponent("Research Exploration Session request")}&body=${encodeURIComponent(body)}`;
-  bookingMessage.value =
-    "Your email app has opened with your session request ready to send.";
-  isBooking.value = false;
+  try {
+    const { error } = await supabase.from("signups").insert({
+      email: form.email.trim(),
+      name: form.name.trim(),
+      grade: form.grade.trim(),
+      research_area: form.researchArea,
+      intro: form.intro.trim(),
+    });
+
+    if (error) throw error;
+
+    bookingMessage.value = "Thanks — your signup has been received.";
+    Object.assign(form, {
+      email: "",
+      name: "",
+      grade: "",
+      researchArea: "",
+      intro: "",
+    });
+  } catch (error) {
+    console.error("Unable to save signup:", error);
+    bookingMessage.value =
+      "We couldn't submit your signup. Please try again shortly.";
+  } finally {
+    isBooking.value = false;
+  }
 }
 </script>
 
