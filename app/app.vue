@@ -2,14 +2,8 @@
   <UApp>
     <div class="page-shell">
       <NuxtRouteAnnouncer />
-      <header class="site-header">
-        <NuxtLink to="/" class="wordmark">IASE</NuxtLink>
-        <a class="text-link" href="mailto:hunt.feng@usask.ca">Contact</a>
-      </header>
-
       <main>
         <section class="hero" aria-labelledby="page-title">
-          <p class="eyebrow">Institute of Advanced Science Education</p>
           <h1 id="page-title">
             Start your research journey with a graduate-student mentor.
           </h1>
@@ -93,7 +87,7 @@
 
       <footer>
         <span>Institute of Advanced Science Education</span>
-        <a href="mailto:hunt.feng@usask.ca">hunt.feng@usask.ca</a>
+        <a class="text-link" href="mailto:hunt.feng@usask.ca">Contact</a>
       </footer>
     </div>
   </UApp>
@@ -261,7 +255,7 @@ footer {
 }
 .hero {
   max-width: 800px;
-  padding: 112px 0 96px;
+  padding: 1rem 0 1rem;
 }
 .eyebrow {
   margin: 0 0 17px;
